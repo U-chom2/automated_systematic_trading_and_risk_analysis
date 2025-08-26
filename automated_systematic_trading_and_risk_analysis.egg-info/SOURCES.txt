@@ -1,0 +1,7 @@
+//README.md
+main.py
+pyproject.toml
+automated_systematic_trading_and_risk_analysis.egg-info/PKG-INFO
+automated_systematic_trading_and_risk_analysis.egg-info/SOURCES.txt
+automated_systematic_trading_and_risk_analysis.egg-info/dependency_links.txt
+automated_systematic_trading_and_risk_analysis.egg-info/top_level.txt

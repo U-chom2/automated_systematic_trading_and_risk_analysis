@@ -1,0 +1,10 @@
+__pycache__
+*.log
+models/
+data/
+analysis_output/
+
+.venv/
+.serena/
+.pytest_cache/
+.claude/

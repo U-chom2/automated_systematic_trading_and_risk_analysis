@@ -1,0 +1,37 @@
+[project]
+name = "automated-systematic-trading-and-risk-analysis"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiohttp>=3.12.15",
+    "beautifulsoup4>=4.13.4",
+    "cryptography>=45.0.6",
+    "ginza>=5.2.0",
+    "ja-ginza>=5.2.0",
+    "lxml>=6.0.0",
+    "matplotlib>=3.10.5",
+    "numpy>=2.3.2",
+    "openpyxl>=3.1.5",
+    "pandas>=2.3.2",
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.1.0",
+    "python-dateutil>=2.9.0.post0",
+    "requests>=2.32.5",
+    "scikit-learn>=1.7.1",
+    "spacy>=3.8.7",
+    "ta-lib>=0.6.5",
+    "test-py>=0.3",
+    "torch>=2.8.0",
+    "torchvision>=0.23.0",
+    "transformers>=4.55.4",
+    "tweepy>=4.16.0",
+    "yahooquery>=2.4.1",
+    "yfinance>=0.2.65",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+]
