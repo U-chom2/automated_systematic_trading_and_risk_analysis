@@ -126,6 +126,68 @@ uv run python demo_data_collection.py
 uv run python real_data_demo.py
 ```
 
+### 強化学習AIモデルの訓練と推論
+
+本システムは方針.mdに基づくLSTM + ModernBERT + PPOアーキテクチャを採用しています。
+
+#### 訓練フロー
+
+```bash
+# 訓練データの準備と学習実行（Yahoo Finance + TDnet）
+cd train
+uv run python train.py
+
+# 訓練パラメータ:
+# - 市場指標: 日経225指数（^N225）
+# - ターゲット銘柄: 
+#   * 7203.T（トヨタ）
+#   * 9984.T（ソフトバンクグループ）
+#   * 6758.T（ソニー）
+# - 訓練期間: 2022-01-01 〜 2024-01-01
+# - 総ステップ数: 30,000タイムステップ
+# - アルゴリズム: PPO（Proximal Policy Optimization）
+# - 環境: Gymnasium互換の取引シミュレーター
+```
+
+#### 推論フロー
+
+```bash
+# デモモード（サンプルデータ使用）
+uv run python train/main.py --mode demo
+
+# 推論モード（学習済みモデル使用）
+uv run python train/main.py --mode inference --model train/models/trading_model.pth
+
+# リアルタイムデータで推論（実装予定）
+uv run python train/main.py --mode inference --data realtime
+```
+
+#### モデルアーキテクチャ（方針.md準拠）
+
+- **時系列エンコーダー**: LSTM（2層、隠れ層64次元）
+  - 株価パターンとテクニカル指標の抽出
+  - 30日間の時系列データを処理
+  
+- **ニュースエンコーダー**: ModernBERT-ja-130m
+  - IRニュースの文脈理解と感情分析
+  - 日本語特化の事前学習済みモデル
+  
+- **意思決定エンジン**: Actor-Critic（PPO）
+  - 複数銘柄の同時売買判断
+  - リスク調整済み報酬の最大化
+
+#### 入出力仕様
+
+**入力データ（30日分）:**
+- 日経225: 高値・安値・終値の日次データ
+- ターゲット企業: 高値・安値・終値の日次データ  
+- IRニュース: 直近1ヶ月のテキストデータ
+
+**出力:**
+- 売買アクション: 強売り(-1) / ホールド(0) / 少量買い(0.5) / 強買い(1)
+- 推奨ポジション: -0.33（全売却）〜 1.0（全力買い）
+- 信頼度スコア: 0〜1の確率値
+
 ### テストの実行
 
 ```bash
@@ -238,7 +300,19 @@ echo "# 実装内容" > _docs/2025-08-28-17-57_機能名.md
 ├── tdnet/                    # TDNet連携
 │   └── 企業リスト.json       # 日本企業データ
 ├── yahoo_api/                # Yahoo Finance API
-├── train/                    # モデル訓練
+├── train/                    # 強化学習モデル訓練
+│   ├── 方針.md               # モデル設計ドキュメント
+│   ├── main.py               # 推論・デモ実行
+│   ├── train.py              # 訓練パイプライン
+│   ├── README.md             # 訓練モジュール説明
+│   └── models/               # モデル実装
+│       ├── trading_model.py  # 統合モデル
+│       ├── modernbert_encoder.py # BERTエンコーダー
+│       ├── environment/      # 取引環境
+│       │   └── trading_env.py
+│       ├── agents/           # 強化学習エージェント
+│       │   └── ppo_agent.py
+│       └── rl/               # 学習済みモデル
 ├── tests/                    # テストコード
 └── _docs/                    # ドキュメントと実装ログ
 ```
