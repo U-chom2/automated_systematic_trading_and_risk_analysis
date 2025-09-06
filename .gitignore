@@ -1,6 +1,6 @@
 __pycache__
 *.log
-models/
+# models/
 data/
 analysis_output/
 

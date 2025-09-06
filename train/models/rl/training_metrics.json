@@ -1,0 +1,8 @@
+{
+  "mean_reward": -0.1,
+  "std_reward": 0.0,
+  "mean_length": 430.0,
+  "std_length": 0.0,
+  "min_reward": -0.1,
+  "max_reward": -0.1
+}
