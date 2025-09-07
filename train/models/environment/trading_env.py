@@ -130,6 +130,13 @@ class TradingEnvironment(gym.Env):
         
         # Get unique dates
         self.dates = sorted(price_data.index.get_level_values(0).unique())
+        
+        # Ensure we have enough data for the window
+        if len(self.dates) < window_size + 1:
+            raise ValueError(f"Not enough data: {len(self.dates)} days available, "
+                           f"but need at least {window_size + 1} days for window_size={window_size}")
+        
+        # Calculate max steps: we can trade from window_size to len(dates)-1
         self.max_steps = len(self.dates) - window_size
         
         # Initialize portfolio
@@ -189,6 +196,12 @@ class TradingEnvironment(gym.Env):
         Returns:
             observation, reward, terminated, truncated, info
         """
+        # Check if we're already at the end
+        if self.current_step >= len(self.dates):
+            # Episode already terminated
+            return (np.zeros(self.observation_space.shape), 0.0, True, False, 
+                   {'portfolio_value': 0, 'cash': 0, 'positions': {}})
+        
         # Get current prices
         current_date = self.dates[self.current_step]
         current_prices = self._get_current_prices(current_date)
@@ -211,7 +224,7 @@ class TradingEnvironment(gym.Env):
         reward = self._calculate_reward(portfolio_value_before, portfolio_value_after, current_prices)
         
         # Check if episode is done
-        terminated = self.current_step >= self.max_steps
+        terminated = self.current_step >= len(self.dates) or self.current_step >= self.window_size + self.max_steps
         truncated = False
         
         # Get new observation

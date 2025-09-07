@@ -1,8 +1,8 @@
 {
-  "mean_reward": -0.1,
-  "std_reward": 0.0,
-  "mean_length": 430.0,
+  "mean_reward": -0.10011042552839686,
+  "std_reward": 1.3877787807814457e-17,
+  "mean_length": 623.0,
   "std_length": 0.0,
-  "min_reward": -0.1,
-  "max_reward": -0.1
+  "min_reward": -0.10011042552839687,
+  "max_reward": -0.10011042552839687
 }

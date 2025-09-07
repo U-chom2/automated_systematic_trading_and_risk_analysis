@@ -16,6 +16,7 @@ import logging
 
 # Add models directory to path
 sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from models.trading_model import TradingDecisionModel, MarketData
 
@@ -59,25 +60,40 @@ def generate_sample_data() -> MarketData:
     )
 
 
-def run_inference(model_path: str = None, demo: bool = True):
+def run_inference(model_path: str = None, demo: bool = True, device: str = None):
     """推論実行
     
     Args:
         model_path: モデルファイルのパス
         demo: デモモードで実行するか
+        device: 使用するデバイス ('mps', 'cuda', 'cpu', or None for auto-detect)
     """
     print("=" * 60)
     print("株式売買AI - 推論モード")
     print("=" * 60)
     
+    # デバイス自動検出
+    if device is None:
+        if torch.backends.mps.is_available():
+            device = 'mps'  # Apple Silicon GPU
+        elif torch.cuda.is_available():
+            device = 'cuda:0'  # NVIDIA GPU
+        else:
+            device = 'cpu'  # CPU fallback
+        print(f"自動検出デバイス: {device}")
+    else:
+        print(f"指定デバイス: {device}")
+    
     # モデル初期化
-    model = TradingDecisionModel()
+    model = TradingDecisionModel(device=device)
     
     # モデル読み込み（存在する場合）
     if model_path and Path(model_path).exists():
-        model.load(model_path)
+        model.load(model_path, device=device)
         print(f"モデルを読み込みました: {model_path}")
     
+    # モデルをデバイスに移動
+    model = model.to(device)
     model.eval()
     
     # データ取得
@@ -140,20 +156,33 @@ def main():
     parser.add_argument('--model', type=str, default='models/trading_model.pth',
                        help='モデルファイルパス')
     parser.add_argument('--data', type=str, help='データファイルパス')
+    parser.add_argument('--device', type=str, choices=['mps', 'cuda', 'cuda:0', 'cpu'],
+                       help='使用するデバイス (default: auto-detect)')
     
     args = parser.parse_args()
     
     if args.mode == 'demo':
-        decision = run_inference(demo=True)
+        decision = run_inference(demo=True, device=args.device)
     elif args.mode == 'inference':
-        decision = run_inference(model_path=args.model, demo=False)
+        decision = run_inference(model_path=args.model, demo=False, device=args.device)
     elif args.mode == 'train':
         print("訓練モードは train.py を使用してください")
         print("使用方法: python train.py")
     
     # モデル保存（デモモードの場合）
     if args.mode == 'demo':
-        model = TradingDecisionModel()
+        # デバイス自動検出
+        if args.device is None:
+            if torch.backends.mps.is_available():
+                device = 'mps'
+            elif torch.cuda.is_available():
+                device = 'cuda:0'
+            else:
+                device = 'cpu'
+        else:
+            device = args.device
+            
+        model = TradingDecisionModel(device=device)
         save_path = Path('models') / 'trading_model_demo.pth'
         save_path.parent.mkdir(exist_ok=True)
         model.save(str(save_path))

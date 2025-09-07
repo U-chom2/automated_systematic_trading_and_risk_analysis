@@ -96,7 +96,7 @@ class PPOTradingAgent:
         clip_range: float = 0.2,
         ent_coef: float = 0.01,
         vf_coef: float = 0.5,
-        device: str = "cpu",
+        device: str = None,
         tensorboard_log: Optional[str] = None
     ):
         """Initialize PPO trading agent.
@@ -118,6 +118,25 @@ class PPOTradingAgent:
         """
         self.env = env
         self.num_stocks = num_stocks
+        
+        # Auto-detect device if not specified
+        if device is None:
+            if torch.backends.mps.is_available():
+                device = "mps"  # Apple Silicon GPU
+            elif torch.cuda.is_available():
+                device = "cuda:0"  # NVIDIA GPU
+            else:
+                device = "cpu"  # CPU fallback
+            logger.info(f"Auto-detected device: {device}")
+        
+        # Convert device string to torch device
+        if device == "mps":
+            self.torch_device = torch.device('mps')
+        elif device.startswith("cuda"):
+            self.torch_device = torch.device(device)
+        else:
+            self.torch_device = torch.device('cpu')
+        
         self.device = device
         
         # Custom policy with trading-specific features
@@ -257,7 +276,7 @@ class PPOTradingAgent:
         Returns:
             Action probabilities
         """
-        obs_tensor = torch.FloatTensor(observation).unsqueeze(0).to(self.device)
+        obs_tensor = torch.FloatTensor(observation).unsqueeze(0).to(self.torch_device)
         with torch.no_grad():
             distribution = self.model.policy.get_distribution(obs_tensor)
             probs = distribution.distribution.probs.cpu().numpy()[0]
@@ -272,7 +291,7 @@ class PPOTradingAgent:
         Returns:
             Value estimate
         """
-        obs_tensor = torch.FloatTensor(observation).unsqueeze(0).to(self.device)
+        obs_tensor = torch.FloatTensor(observation).unsqueeze(0).to(self.torch_device)
         with torch.no_grad():
             value = self.model.policy.predict_values(obs_tensor).cpu().numpy()[0, 0]
         return value

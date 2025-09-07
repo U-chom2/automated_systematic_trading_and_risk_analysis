@@ -77,7 +77,8 @@ class SimpleIREncoder(nn.Module):
     
     def forward(self, news_texts: List[str]) -> torch.Tensor:
         """ニュースをエンコード（キーワードベース）"""
-        feature_vector = torch.zeros(1, 100)
+        device = next(self.parameters()).device
+        feature_vector = torch.zeros(1, 100, device=device)
         
         positive_words = ['増収', '増益', '上方修正', '好調', '拡大', '成長', '黒字', '最高益']
         negative_words = ['減収', '減益', '下方修正', '低迷', '縮小', '赤字', '損失', '悪化']
@@ -102,10 +103,28 @@ class TradingDecisionModel(nn.Module):
     - 意思決定: Actor-Critic構造（PPO互換）
     """
     
-    def __init__(self, window_size: int = 30, use_modernbert: bool = True):
+    def __init__(self, window_size: int = 30, use_modernbert: bool = True, device: str = None):
         super().__init__()
         self.window_size = window_size
         self.use_modernbert = use_modernbert and MODERNBERT_AVAILABLE
+        
+        # Auto-detect device if not specified
+        if device is None:
+            if torch.backends.mps.is_available():
+                device = 'mps'  # Apple Silicon GPU
+            elif torch.cuda.is_available():
+                device = 'cuda:0'  # NVIDIA GPU
+            else:
+                device = 'cpu'  # CPU fallback
+            logger.info(f"Auto-detected device: {device}")
+        
+        # Convert device string to torch device
+        if device == 'mps':
+            self.device = torch.device('mps')
+        elif device.startswith('cuda'):
+            self.device = torch.device(device)
+        else:
+            self.device = torch.device('cpu')
         
         # 時系列エンコーダー（LSTM）
         self.nikkei_encoder = MarketEncoder(input_size=3, hidden_size=64)
@@ -113,7 +132,7 @@ class TradingDecisionModel(nn.Module):
         
         # IRニュースエンコーダー（ModernBERT or フォールバック）
         if self.use_modernbert:
-            self.ir_encoder = ModernBERTNewsEncoder(output_size=64)
+            self.ir_encoder = ModernBERTNewsEncoder(output_size=64, device=device)
             logger.info("Using ModernBERT-ja for IR news encoding")
         else:
             # フォールバック用シンプルエンコーダー
@@ -132,7 +151,9 @@ class TradingDecisionModel(nn.Module):
             nn.Linear(64, 4)  # 4つのアクション
         )
         
-        logger.info("TradingDecisionModel initialized")
+        # Move model to device
+        self.to(self.device)
+        logger.info(f"TradingDecisionModel initialized on {device}")
     
     def forward(self, market_data: MarketData) -> Dict[str, float]:
         """売買判断を実行"""
@@ -175,7 +196,7 @@ class TradingDecisionModel(nn.Module):
         """市場データの準備"""
         data = np.stack([high, low, close], axis=-1)
         data = data / normalize_factor
-        return torch.FloatTensor(data).unsqueeze(0)
+        return torch.FloatTensor(data).unsqueeze(0).to(self.device)
     
     def _interpret_decision(self, probs: torch.Tensor) -> Dict[str, float]:
         """判断結果の解釈"""
@@ -197,10 +218,21 @@ class TradingDecisionModel(nn.Module):
         torch.save(self.state_dict(), path)
         logger.info(f"Model saved to {path}")
     
-    def load(self, path: str):
+    def load(self, path: str, device: str = None):
         """モデル読み込み"""
-        self.load_state_dict(torch.load(path))
-        logger.info(f"Model loaded from {path}")
+        if device:
+            # Convert device string to torch device if needed
+            if device == 'mps':
+                map_location = torch.device('mps')
+            elif device.startswith('cuda'):
+                map_location = torch.device(device)
+            else:
+                map_location = torch.device('cpu')
+        else:
+            map_location = self.device
+            
+        self.load_state_dict(torch.load(path, map_location=map_location))
+        logger.info(f"Model loaded from {path} to {map_location}")
         
     def train_step(self, batch_data: List[MarketData], targets: torch.Tensor,
                   optimizer: torch.optim.Optimizer) -> float:

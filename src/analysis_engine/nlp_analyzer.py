@@ -82,7 +82,14 @@ class NlpAnalyzer:
             self.sentiment_model.eval()
             
             # Set device
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            # Auto-detect best available device
+            if torch.backends.mps.is_available():
+                self.device = torch.device('mps')  # Apple Silicon GPU
+            elif torch.cuda.is_available():
+                self.device = torch.device('cuda:0')  # NVIDIA GPU
+            else:
+                self.device = torch.device('cpu')  # CPU fallback
+            logger.info(f"NLP Analyzer using device: {self.device}")
             self.sentiment_model.to(self.device)
             
             logger.info(f"BERT sentiment model loaded on device: {self.device}")

@@ -21,7 +21,7 @@ class ModernBERTNewsEncoder(nn.Module):
         model_name: str = "sbintuitions/modernbert-ja-130m",
         output_size: int = 64,
         max_length: int = 512,
-        device: str = "cpu"
+        device: str = None
     ):
         """
         ModernBERT-jaベースのニュースエンコーダー初期化
@@ -35,6 +35,25 @@ class ModernBERTNewsEncoder(nn.Module):
         super().__init__()
         self.output_size = output_size
         self.max_length = max_length
+        
+        # Auto-detect device if not specified
+        if device is None:
+            if torch.backends.mps.is_available():
+                device = "mps"  # Apple Silicon GPU
+            elif torch.cuda.is_available():
+                device = "cuda:0"  # NVIDIA GPU
+            else:
+                device = "cpu"  # CPU fallback
+            logger.info(f"Auto-detected device: {device}")
+        
+        # Convert device string to torch device
+        if device == "mps":
+            self.torch_device = torch.device('mps')
+        elif device.startswith("cuda"):
+            self.torch_device = torch.device(device)
+        else:
+            self.torch_device = torch.device('cpu')
+        
         self.device = device
         
         # Transformersライブラリがインストールされている場合のみ使用
@@ -51,7 +70,7 @@ class ModernBERTNewsEncoder(nn.Module):
                 logger.info(f"ModernBERT-ja loaded: {model_name}")
             except Exception as e:
                 logger.warning(f"Failed to load ModernBERT-ja: {e}")
-                raise e
+                self.use_bert = False  # Don't raise, just use fallback
         except ImportError:
             self.use_bert = False
             logger.warning("Transformers not installed, using simple encoder")
@@ -88,7 +107,7 @@ class ModernBERTNewsEncoder(nn.Module):
             # シンプルエンコーダー（フォールバック）
             self.simple_encoder = SimpleNewsEncoder(output_size)
         
-        self.to(device)
+        self.to(self.torch_device)
     
     def forward(self, news_texts: List[str]) -> torch.Tensor:
         """
@@ -101,7 +120,7 @@ class ModernBERTNewsEncoder(nn.Module):
             エンコードされた特徴ベクトル
         """
         if not news_texts:
-            return torch.zeros(1, self.output_size).to(self.device)
+            return torch.zeros(1, self.output_size).to(self.torch_device)
         
         if self.use_bert:
             # BERTでエンコード
@@ -122,7 +141,7 @@ class ModernBERTNewsEncoder(nn.Module):
             truncation=True,
             max_length=self.max_length,
             return_tensors="pt"
-        ).to(self.device)
+        ).to(self.torch_device)
         
         # BERTでエンコード
         with torch.no_grad():
@@ -190,10 +209,13 @@ class SimpleNewsEncoder(nn.Module):
         positive_keywords = ['増収', '増益', '上方修正', '好調', '拡大', '成長', '黒字']
         negative_keywords = ['減収', '減益', '下方修正', '低迷', '縮小', '赤字', '損失']
         
+        # Get device from model parameters
+        device = next(self.parameters()).device
+        
         # 簡易的なトークン化と特徴抽出
         feature_matrix = []
         for text in texts[:10]:  # 最大10ニュース
-            features = torch.zeros(20)
+            features = torch.zeros(20, device=device)
             for i, word in enumerate(positive_keywords):
                 if word in text:
                     features[i] = 1.0
@@ -203,7 +225,7 @@ class SimpleNewsEncoder(nn.Module):
             feature_matrix.append(features)
         
         if not feature_matrix:
-            feature_matrix = [torch.zeros(20)]
+            feature_matrix = [torch.zeros(20, device=device)]
         
         # 埋め込みに変換
         features_tensor = torch.stack(feature_matrix)

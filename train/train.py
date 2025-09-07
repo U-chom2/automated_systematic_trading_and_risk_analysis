@@ -14,6 +14,7 @@ from gymnasium import spaces
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent))
 
 # 簡略化した訓練用のインポート
 from models.trading_model import TradingDecisionModel, MarketData
@@ -211,7 +212,7 @@ class Nikkei225TradingPipeline:
         n_steps: int = 1024,
         batch_size: int = 32,
         n_epochs: int = 10,
-        device: str = "cpu"
+        device: str = None
     ) -> PPOTradingAgent:
         """Train the RL agent.
         
@@ -228,10 +229,28 @@ class Nikkei225TradingPipeline:
         """
         logger.info("Starting training pipeline")
         
+        # Set device if not specified
+        if device is None:
+            if torch.backends.mps.is_available():
+                device = "mps"  # Apple Silicon GPU
+            elif torch.cuda.is_available():
+                device = "cuda:0"  # NVIDIA GPU
+            else:
+                device = "cpu"  # CPU fallback
+            logger.info(f"Auto-detected device: {device}")
+        
         # Fetch all data
         nikkei_data = self.fetch_nikkei_data()
         target_data = self.fetch_target_stocks_data()
         news_data = self.fetch_ir_news_mock()
+        
+        # Adjust window size if not enough data
+        available_days = len(nikkei_data)
+        adjusted_window_size = min(self.window_size, max(5, available_days - 5))  # At least 5 days, max available-5
+        
+        if adjusted_window_size != self.window_size:
+            logger.warning(f"Adjusted window_size from {self.window_size} to {adjusted_window_size} due to limited data ({available_days} days)")
+            self.window_size = adjusted_window_size
         
         # Create enhanced environment
         env = self.create_enhanced_environment(nikkei_data, target_data, news_data)
@@ -419,8 +438,13 @@ def main():
         window_size=30  # 1 month of daily data
     )
     
-    # Check if CUDA is available
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # Check for available device
+    if torch.backends.mps.is_available():
+        device = "mps"  # Apple Silicon GPU
+    elif torch.cuda.is_available():
+        device = "cuda:0"  # NVIDIA GPU
+    else:
+        device = "cpu"  # CPU fallback
     logger.info(f"Using device: {device}")
     
     # Train agent
