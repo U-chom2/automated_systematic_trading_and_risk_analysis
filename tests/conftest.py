@@ -1,16 +1,141 @@
-"""Pytest configuration and fixtures for the test suite."""
-
+"""テスト共通設定"""
 import pytest
+import asyncio
 import sys
 from pathlib import Path
+from typing import AsyncGenerator, Generator, Dict, Any, List
+from datetime import datetime, date
 from decimal import Decimal
-from typing import Dict, Any, List
+from uuid import uuid4
 
-# Add src directory to Python path
+# srcディレクトリをパスに追加
 project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root / "src"))
+sys.path.insert(0, str(project_root))
+
+from src.infrastructure.database.connection import DatabaseConnection
+from src.infrastructure.cache.redis_client import RedisClient
+from src.common.config import Settings
 
 
+@pytest.fixture(scope="session")
+def event_loop():
+    """イベントループフィクスチャ"""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest.fixture(scope="session")
+def test_settings() -> Settings:
+    """テスト用設定"""
+    return Settings(
+        environment="testing",
+        debug=True,
+        postgres_url="postgresql+asyncpg://test:test@localhost/test_trading_db",
+        redis_url="redis://localhost:6379/1",
+        log_level="DEBUG",
+    )
+
+
+@pytest.fixture
+async def db_connection(test_settings) -> AsyncGenerator[DatabaseConnection, None]:
+    """データベース接続フィクスチャ"""
+    connection = DatabaseConnection(test_settings.get_database_url())
+    await connection.connect()
+    
+    # テスト用のテーブルを作成
+    await connection.execute("CREATE SCHEMA IF NOT EXISTS test")
+    
+    yield connection
+    
+    # クリーンアップ
+    await connection.execute("DROP SCHEMA IF EXISTS test CASCADE")
+    await connection.disconnect()
+
+
+@pytest.fixture
+async def redis_client(test_settings) -> AsyncGenerator[RedisClient, None]:
+    """Redisクライアントフィクスチャ"""
+    client = RedisClient(test_settings.get_redis_url())
+    await client.connect()
+    
+    yield client
+    
+    # クリーンアップ
+    await client.flush_all()
+    await client.disconnect()
+
+
+@pytest.fixture
+def sample_portfolio_data():
+    """サンプルポートフォリオデータ"""
+    return {
+        "id": uuid4(),
+        "name": "Test Portfolio",
+        "initial_capital": Decimal("10000000"),
+        "current_capital": Decimal("10000000"),
+        "is_active": True,
+        "created_at": datetime.utcnow(),
+    }
+
+
+@pytest.fixture
+def sample_stock_data():
+    """サンプル株式データ"""
+    return {
+        "id": uuid4(),
+        "ticker": "7203.T",
+        "name": "トヨタ自動車",
+        "market": "TSE",
+        "sector": "Automobile",
+        "is_active": True,
+    }
+
+
+@pytest.fixture
+def sample_trade_data():
+    """サンプル取引データ"""
+    return {
+        "id": uuid4(),
+        "portfolio_id": uuid4(),
+        "ticker": "7203.T",
+        "side": "BUY",
+        "quantity": 100,
+        "price": Decimal("2500"),
+        "commission": Decimal("250"),
+        "executed_at": datetime.utcnow(),
+    }
+
+
+@pytest.fixture
+def sample_signal_data():
+    """サンプルシグナルデータ"""
+    return {
+        "id": uuid4(),
+        "ticker": "7203.T",
+        "signal_type": "BUY",
+        "strength": 0.85,
+        "confidence": 0.92,
+        "source": "AI_MODEL",
+        "generated_at": datetime.utcnow(),
+    }
+
+
+@pytest.fixture
+def sample_market_data():
+    """サンプル市場データ"""
+    return {
+        "ticker": "7203.T",
+        "date": date.today(),
+        "open": Decimal("2480"),
+        "high": Decimal("2520"),
+        "low": Decimal("2470"),
+        "close": Decimal("2500"),
+        "volume": 1000000,
+    }
+
+
+# 既存のフィクスチャも維持（互換性のため）
 @pytest.fixture
 def sample_capital() -> Decimal:
     """Fixture for sample capital amount."""

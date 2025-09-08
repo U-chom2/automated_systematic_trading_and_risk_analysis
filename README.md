@@ -16,33 +16,66 @@ Automated Systematic Trading and Risk Analysis System
 
 ## 🏗️ アーキテクチャ
 
+本システムはClean Architecture原則に基づいて設計されており、ビジネスロジックを外部の技術的詳細から独立させています。
+
 ```text
 ┌─────────────────────────────────────────────────────┐
-│                   SystemCore                        │
-│              (システム統合・ワークフロー管理)          │
+│              Presentation Layer                     │
+│         (FastAPI, WebSocket, CLI)                  │
 └─────────────────────────────────────────────────────┘
                           │
-    ┌─────────────────────┼─────────────────────┐
-    │                     │                     │
-┌───▼────┐         ┌─────▼─────┐         ┌─────▼─────┐
-│  Data   │         │ Analysis  │         │Execution │
-│Collector│────────▶│  Engine   │────────▶│ Manager  │
-└─────────┘         └───────────┘         └───────────┘
-    │                     │                     │
-    │                     │                     │
- ・TDNet             ・NLP分析              ・注文執行
- ・Yahoo Finance     ・センチメント分析      ・リスク管理
- ・SNS/掲示板        ・テクニカル分析        ・ポジション管理
+┌─────────────────────────────────────────────────────┐
+│              Application Layer                      │
+│    (Use Cases, DTOs, Application Services)         │
+└─────────────────────────────────────────────────────┘
+                          │
+┌─────────────────────────────────────────────────────┐
+│                 Domain Layer                        │
+│     (Entities, Value Objects, Domain Services)     │
+└─────────────────────────────────────────────────────┘
+                          │
+┌─────────────────────────────────────────────────────┐
+│            Infrastructure Layer                     │
+│  (Database, External APIs, Message Queue, Cache)   │
+└─────────────────────────────────────────────────────┘
 ```
 
-### モジュール構成
+### レイヤー構成
 
-- **`tdnet/`**: TDNet連携とIR情報収集
-- **`yahoo_api/`**: Yahoo Finance APIによる株価データ取得
-- **`src/`**: コアビジネスロジック
-- **`train/`**: 機械学習モデルの訓練コード
-- **`tests/`**: 単体テスト・統合テスト
-- **`_docs/`**: 実装ログとドキュメント
+#### 1. **ドメイン層** (`src/domain/`)
+- **Entities**: ポートフォリオ、取引、ポジション、シグナル等のビジネスエンティティ
+- **Value Objects**: Money、Price、Quantity等の不変オブジェクト
+- **Domain Services**: 取引戦略、リスク管理、シグナル生成等のビジネスロジック
+- **Repository Interfaces**: データ永続化の抽象インターフェース
+
+#### 2. **アプリケーション層** (`src/application/`)
+- **Use Cases**: ポートフォリオ管理、取引実行、バックテスト等のビジネスユースケース
+- **DTOs**: レイヤー間のデータ転送オブジェクト
+- **Application Services**: ユースケースのオーケストレーション
+
+#### 3. **インフラストラクチャ層** (`src/infrastructure/`)
+- **Database**: PostgreSQL/TimescaleDB接続とSQLAlchemyモデル
+- **Repositories**: リポジトリパターンの具体実装
+- **External APIs**: Yahoo Finance、TDNet等の外部API連携
+- **Cache**: Redis キャッシュ実装
+- **AI Models**: PPO、ModernBERT等のAIモデル統合
+
+#### 4. **プレゼンテーション層** (`src/presentation/`)
+- **API**: FastAPIによるREST APIエンドポイント
+- **WebSocket**: リアルタイム通信
+- **CLI**: コマンドラインインターフェース
+
+### 技術スタック
+
+- **フレームワーク**: FastAPI (非同期Web API)
+- **データベース**: PostgreSQL + TimescaleDB (時系列データ)
+- **キャッシュ**: Redis
+- **ORM**: SQLAlchemy 2.0 (async)
+- **ML/AI**: PyTorch, Stable-Baselines3, Transformers
+- **テクニカル分析**: TA-Lib
+- **非同期処理**: asyncio, aiohttp
+- **テスト**: pytest, pytest-asyncio
+- **コンテナ**: Docker, Docker Compose
 
 ## 🔧 セットアップ
 
@@ -107,23 +140,59 @@ EOF
 
 ## 🎯 使用方法
 
-### 基本的な実行
+### Docker環境での実行
 
 ```bash
-# メインプログラムの実行
-uv run python main.py
+# Dockerコンテナの起動
+make docker-up
 
-# 統合版メインプログラムの実行
-uv run python integrated_main.py
+# または docker-compose直接
+docker-compose up -d
 
-# シンプルな分析の実行(現状これだけ)
-uv run python run_analysis_simple.py
+# ログの確認
+make docker-logs
 
-# デモデータ収集
-uv run python demo_data_collection.py
+# コンテナの停止
+make docker-down
+```
 
-# リアルデータのデモ
-uv run python real_data_demo.py
+### ローカル環境での実行
+
+```bash
+# FastAPIアプリケーションの起動
+make run
+
+# または直接実行
+uv run uvicorn src.presentation.api.app:app --reload --host 0.0.0.0 --port 8000
+
+# APIドキュメント: http://localhost:8000/docs
+```
+
+### API使用例
+
+```bash
+# ポートフォリオ作成
+curl -X POST "http://localhost:8000/api/v1/portfolios/" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My Portfolio",
+    "initial_capital": 10000000,
+    "description": "Test portfolio"
+  }'
+
+# 市場データ取得
+curl "http://localhost:8000/api/v1/market-data/price/7203.T"
+
+# バックテスト実行
+curl -X POST "http://localhost:8000/api/v1/backtest/run" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tickers": ["7203.T", "9984.T"],
+    "start_date": "2023-01-01",
+    "end_date": "2023-12-31",
+    "initial_capital": 10000000,
+    "strategy_type": "AI_DRIVEN"
+  }'
 ```
 
 ### 強化学習AIモデルの訓練と推論
@@ -287,34 +356,71 @@ echo "# 実装内容" > _docs/2025-08-28-17-57_機能名.md
 .
 ├── README.md                 # このファイル
 ├── CLAUDE.md                 # 開発規約とガイドライン
-├── 要件定義書.md             # システム要件定義書
 ├── pyproject.toml            # プロジェクト設定と依存関係
 ├── uv.lock                   # ロックファイル
-├── main.py                   # メインエントリーポイント
-├── integrated_main.py        # 統合版メインプログラム
-├── src/                      # ソースコード
-│   ├── data_collector/       # データ収集モジュール
-│   ├── analysis_engine/      # 分析エンジン
-│   ├── execution_manager/    # 執行管理
-│   └── utils/                # ユーティリティ
-├── tdnet/                    # TDNet連携
-│   └── 企業リスト.json       # 日本企業データ
-├── yahoo_api/                # Yahoo Finance API
+├── .env.example              # 環境変数サンプル
+├── docker-compose.yml        # Docker構成
+├── Dockerfile                # アプリケーションコンテナ
+├── Makefile                  # 開発タスク自動化
+├── alembic.ini               # データベースマイグレーション設定
+├── pytest.ini                # テスト設定
+│
+├── src/                      # ソースコード（Clean Architecture）
+│   ├── domain/               # ドメイン層
+│   │   ├── entities/         # ビジネスエンティティ
+│   │   ├── value_objects/    # 値オブジェクト
+│   │   ├── services/         # ドメインサービス
+│   │   └── repositories/     # リポジトリインターフェース
+│   │
+│   ├── application/          # アプリケーション層
+│   │   ├── use_cases/        # ユースケース
+│   │   ├── dto/              # データ転送オブジェクト
+│   │   └── services/         # アプリケーションサービス
+│   │
+│   ├── infrastructure/       # インフラストラクチャ層
+│   │   ├── database/         # データベース実装
+│   │   ├── repositories/     # リポジトリ実装
+│   │   ├── external_apis/    # 外部API連携
+│   │   ├── cache/            # キャッシュ実装
+│   │   └── ai_models/        # AIモデル統合
+│   │
+│   ├── presentation/         # プレゼンテーション層
+│   │   ├── api/              # FastAPI実装
+│   │   │   ├── app.py        # アプリケーション設定
+│   │   │   └── routers/      # APIエンドポイント
+│   │   ├── websocket/        # WebSocket実装
+│   │   └── cli/              # CLIインターフェース
+│   │
+│   └── common/               # 共通モジュール
+│       ├── config.py         # 設定管理
+│       ├── logging.py        # ロギング設定
+│       ├── exceptions.py     # カスタム例外
+│       ├── validators.py     # バリデーション
+│       ├── utils.py          # ユーティリティ
+│       └── constants.py      # 定数定義
+│
 ├── train/                    # 強化学習モデル訓練
 │   ├── 方針.md               # モデル設計ドキュメント
 │   ├── main.py               # 推論・デモ実行
 │   ├── train.py              # 訓練パイプライン
-│   ├── README.md             # 訓練モジュール説明
 │   └── models/               # モデル実装
-│       ├── trading_model.py  # 統合モデル
-│       ├── modernbert_encoder.py # BERTエンコーダー
-│       ├── environment/      # 取引環境
-│       │   └── trading_env.py
-│       ├── agents/           # 強化学習エージェント
-│       │   └── ppo_agent.py
-│       └── rl/               # 学習済みモデル
+│
 ├── tests/                    # テストコード
-└── _docs/                    # ドキュメントと実装ログ
+│   ├── conftest.py           # テスト共通設定
+│   ├── unit/                 # ユニットテスト
+│   │   ├── domain/           # ドメイン層テスト
+│   │   └── application/      # アプリケーション層テスト
+│   ├── integration/          # 統合テスト
+│   └── e2e/                  # E2Eテスト
+│
+├── scripts/                  # スクリプト
+│   └── init.sql              # データベース初期化
+│
+├── docs/                     # ドキュメント
+│   └── architecture/         # アーキテクチャ設計書
+│
+└── alembic/                  # データベースマイグレーション
+    └── versions/             # マイグレーションファイル
 ```
 
 ## 🔒 セキュリティとリスク管理

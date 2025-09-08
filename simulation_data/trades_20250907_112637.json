@@ -1,0 +1,38 @@
+[
+  {
+    "trade_id": "4381.T_20250907112637",
+    "symbol": "4381.T",
+    "company_name": "ビープラッツ",
+    "trade_type": "buy",
+    "trade_date": "2025-09-07 11:26:37",
+    "price": 527.0,
+    "shares": 56,
+    "amount": 29512.0,
+    "commission": 73.78,
+    "reason": "entry"
+  },
+  {
+    "trade_id": "9215.T_20250907112637",
+    "symbol": "9215.T",
+    "company_name": "ＣａＳｙ",
+    "trade_type": "buy",
+    "trade_date": "2025-09-07 11:26:37",
+    "price": 1019.0,
+    "shares": 29,
+    "amount": 29551.0,
+    "commission": 73.8775,
+    "reason": "entry"
+  },
+  {
+    "trade_id": "7093.T_20250907112637",
+    "symbol": "7093.T",
+    "company_name": "アディッシュ",
+    "trade_type": "buy",
+    "trade_date": "2025-09-07 11:26:37",
+    "price": 602.0,
+    "shares": 49,
+    "amount": 29498.0,
+    "commission": 73.745,
+    "reason": "entry"
+  }
+]

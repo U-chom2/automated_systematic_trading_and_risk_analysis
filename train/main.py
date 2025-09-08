@@ -27,20 +27,18 @@ logger = logging.getLogger(__name__)
 
 
 def generate_sample_data() -> MarketData:
-    """サンプルデータを生成"""
-    np.random.seed(42)
+    """ダミーデータを生成（すべて0で明確にダミー）"""
+    logger.error("FALLBACK: Generating all-zero dummy data for training demo")
     
-    # 日経225データ（30日分）
-    nikkei_base = 28000
-    nikkei_close = nikkei_base + np.cumsum(np.random.randn(30) * 100)
-    nikkei_high = nikkei_close + np.abs(np.random.randn(30) * 50)
-    nikkei_low = nikkei_close - np.abs(np.random.randn(30) * 50)
+    # 日経225データ（30日分、すべて0）
+    nikkei_high = np.zeros(30)
+    nikkei_low = np.zeros(30)
+    nikkei_close = np.zeros(30)
     
-    # ターゲット株データ（30日分）
-    target_base = 3000
-    target_close = target_base + np.cumsum(np.random.randn(30) * 20)
-    target_high = target_close + np.abs(np.random.randn(30) * 10)
-    target_low = target_close - np.abs(np.random.randn(30) * 10)
+    # ターゲット株データ（30日分、すべて0）
+    target_high = np.zeros(30)
+    target_low = np.zeros(30)
+    target_close = np.zeros(30)
     
     # IRニュース（サンプル）
     ir_news = [

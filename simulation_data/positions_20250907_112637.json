@@ -1,0 +1,62 @@
+{
+  "active": [
+    {
+      "symbol": "4381.T",
+      "company_name": "ビープラッツ",
+      "entry_date": "2025-09-07",
+      "entry_price": 527.0,
+      "shares": 56,
+      "current_price": 527.0,
+      "target_price": 537.54,
+      "stop_loss_price": 519.095,
+      "holding_days": 0,
+      "max_holding_days": 3,
+      "unrealized_pnl": 0,
+      "unrealized_pnl_pct": 0,
+      "status": "active",
+      "exit_date": null,
+      "exit_price": null,
+      "realized_pnl": null,
+      "realized_pnl_pct": null
+    },
+    {
+      "symbol": "9215.T",
+      "company_name": "ＣａＳｙ",
+      "entry_date": "2025-09-07",
+      "entry_price": 1019.0,
+      "shares": 29,
+      "current_price": 1019.0,
+      "target_price": 1039.38,
+      "stop_loss_price": 1003.715,
+      "holding_days": 0,
+      "max_holding_days": 3,
+      "unrealized_pnl": 0,
+      "unrealized_pnl_pct": 0,
+      "status": "active",
+      "exit_date": null,
+      "exit_price": null,
+      "realized_pnl": null,
+      "realized_pnl_pct": null
+    },
+    {
+      "symbol": "7093.T",
+      "company_name": "アディッシュ",
+      "entry_date": "2025-09-07",
+      "entry_price": 602.0,
+      "shares": 49,
+      "current_price": 602.0,
+      "target_price": 614.04,
+      "stop_loss_price": 592.97,
+      "holding_days": 0,
+      "max_holding_days": 3,
+      "unrealized_pnl": 0,
+      "unrealized_pnl_pct": 0,
+      "status": "active",
+      "exit_date": null,
+      "exit_price": null,
+      "realized_pnl": null,
+      "realized_pnl_pct": null
+    }
+  ],
+  "closed": []
+}

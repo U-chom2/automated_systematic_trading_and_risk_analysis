@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.daytrading.update</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/y.okumura/private_workspace/automated_systematic_trading_and_risk_analysis/automation/run_daytrading.sh</string>
+        <string>update</string>
+    </array>
+    
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>30</integer>
+        <key>Weekday</key>
+        <array>
+            <integer>1</integer>  <!-- 月曜日 -->
+            <integer>2</integer>  <!-- 火曜日 -->
+            <integer>3</integer>  <!-- 水曜日 -->
+            <integer>4</integer>  <!-- 木曜日 -->
+            <integer>5</integer>  <!-- 金曜日 -->
+        </array>
+    </dict>
+    
+    <key>WorkingDirectory</key>
+    <string>/Users/y.okumura/private_workspace/automated_systematic_trading_and_risk_analysis</string>
+    
+    <key>StandardOutPath</key>
+    <string>/Users/y.okumura/daytrading_logs/update.log</string>
+    
+    <key>StandardErrorPath</key>
+    <string>/Users/y.okumura/daytrading_logs/update_error.log</string>
+    
+    <key>RunAtLoad</key>
+    <false/>
+    
+    <key>KeepAlive</key>
+    <false/>
+    
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+    </dict>
+</dict>
+</plist>

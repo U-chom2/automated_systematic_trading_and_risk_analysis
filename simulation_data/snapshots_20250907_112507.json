@@ -1,0 +1,41 @@
+[
+  {
+    "date": "2025-09-07 11:24:51",
+    "cash": 100000.0,
+    "total_value": 100000.0,
+    "position_value": 0.0,
+    "unrealized_pnl": 0,
+    "realized_pnl": 0,
+    "total_pnl": 0,
+    "num_positions": 0,
+    "winning_trades": 0,
+    "losing_trades": 0,
+    "win_rate": 0
+  },
+  {
+    "date": "2025-09-07 11:24:59",
+    "cash": 100000.0,
+    "total_value": 100000.0,
+    "position_value": 0.0,
+    "unrealized_pnl": 0,
+    "realized_pnl": 0,
+    "total_pnl": 0,
+    "num_positions": 0,
+    "winning_trades": 0,
+    "losing_trades": 0,
+    "win_rate": 0
+  },
+  {
+    "date": "2025-09-07 11:25:07",
+    "cash": 100000.0,
+    "total_value": 100000.0,
+    "position_value": 0.0,
+    "unrealized_pnl": 0,
+    "realized_pnl": 0,
+    "total_pnl": 0,
+    "num_positions": 0,
+    "winning_trades": 0,
+    "losing_trades": 0,
+    "win_rate": 0
+  }
+]
