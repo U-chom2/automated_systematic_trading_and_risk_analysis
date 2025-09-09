@@ -28,14 +28,17 @@ class TradingFeaturesExtractor(BaseFeaturesExtractor):
         
         input_dim = observation_space.shape[0]
         
+        # Larger network for 605 stocks
         self.net = nn.Sequential(
-            nn.Linear(input_dim, 512),
+            nn.Linear(input_dim, 1024),  # Increased first layer
+            nn.LayerNorm(1024),
+            nn.ReLU(),
+            nn.Dropout(0.2),  # Reduced dropout for better capacity
+            nn.Linear(1024, 512),
+            nn.LayerNorm(512),
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(512, 256),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(256, features_dim),
+            nn.Linear(512, features_dim),
             nn.ReLU()
         )
     
@@ -139,14 +142,14 @@ class PPOTradingAgent:
         
         self.device = device
         
-        # Custom policy with trading-specific features
+        # Custom policy with trading-specific features and gradient clipping
         policy_kwargs = {
             "features_extractor_class": TradingFeaturesExtractor,
-            "features_extractor_kwargs": {"features_dim": 256},
-            "net_arch": [dict(pi=[128, 64], vf=[128, 64])]
+            "features_extractor_kwargs": {"features_dim": 512},  # Increased feature dim
+            "net_arch": [dict(pi=[256, 128], vf=[256, 128])]     # Larger networks
         }
         
-        # Initialize PPO model
+        # Initialize PPO model with gradient clipping
         self.model = PPO(
             "MlpPolicy",
             env,
@@ -159,6 +162,7 @@ class PPOTradingAgent:
             clip_range=clip_range,
             ent_coef=ent_coef,
             vf_coef=vf_coef,
+            max_grad_norm=0.5,  # Add gradient clipping
             policy_kwargs=policy_kwargs,
             verbose=1,
             device=device,

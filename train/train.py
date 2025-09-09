@@ -67,7 +67,11 @@ class Nikkei225TradingPipeline:
         self.model_save_dir = model_save_dir or Path(__file__).parent / 'models' / 'rl'
         self.model_save_dir.mkdir(parents=True, exist_ok=True)
         
-        self.yahoo_client = YahooFinanceClient()
+        # YahooFinanceClient is optional, not needed for yfinance usage
+        if YahooFinanceClient is not None:
+            self.yahoo_client = YahooFinanceClient()
+        else:
+            self.yahoo_client = None
         
         logger.info(f"Pipeline initialized for {len(target_symbols)} target symbols with Nikkei 225 indicator")
     
@@ -107,29 +111,41 @@ class Nikkei225TradingPipeline:
         Returns:
             DataFrame with MultiIndex (date, symbol) and OHLCV columns
         """
-        logger.info(f"Fetching target stocks data")
+        logger.info(f"Fetching target stocks data for {len(self.target_symbols)} symbols")
         
         all_data = []
+        failed_symbols = []
         
-        for symbol in self.target_symbols:
-            try:
-                ticker = yf.Ticker(symbol)
-                hist = ticker.history(start=self.start_date, end=self.end_date)
-                
-                if hist.empty:
-                    logger.warning(f"No data found for {symbol}")
-                    continue
-                
-                # Prepare data
-                hist['symbol'] = symbol
-                hist.reset_index(inplace=True)
-                hist.columns = [col.lower() for col in hist.columns]
-                
-                all_data.append(hist)
-                logger.info(f"Fetched {len(hist)} records for {symbol}")
-                
-            except Exception as e:
-                logger.error(f"Error fetching data for {symbol}: {e}")
+        # Process in batches to avoid overwhelming the API
+        batch_size = 50
+        for i in range(0, len(self.target_symbols), batch_size):
+            batch = self.target_symbols[i:i+batch_size]
+            logger.info(f"Processing batch {i//batch_size + 1}/{(len(self.target_symbols) + batch_size - 1)//batch_size}")
+            
+            for symbol in batch:
+                try:
+                    ticker = yf.Ticker(symbol)
+                    hist = ticker.history(start=self.start_date, end=self.end_date)
+                    
+                    if hist.empty:
+                        logger.debug(f"No data found for {symbol}")
+                        failed_symbols.append(symbol)
+                        continue
+                    
+                    # Prepare data
+                    hist['symbol'] = symbol
+                    hist.reset_index(inplace=True)
+                    hist.columns = [col.lower() for col in hist.columns]
+                    
+                    all_data.append(hist)
+                    
+                except Exception as e:
+                    logger.debug(f"Error fetching data for {symbol}: {e}")
+                    failed_symbols.append(symbol)
+        
+        logger.info(f"Successfully fetched data for {len(all_data)} symbols")
+        if failed_symbols:
+            logger.warning(f"Failed to fetch data for {len(failed_symbols)} symbols")
         
         if not all_data:
             raise ValueError("No data fetched for any target symbol")
@@ -246,7 +262,7 @@ class Nikkei225TradingPipeline:
         
         # Adjust window size if not enough data
         available_days = len(nikkei_data)
-        adjusted_window_size = min(self.window_size, max(5, available_days - 5))  # At least 5 days, max available-5
+        adjusted_window_size = min(self.window_size, max(5, available_days - 10))  # At least 5 days, leaving more buffer
         
         if adjusted_window_size != self.window_size:
             logger.warning(f"Adjusted window_size from {self.window_size} to {adjusted_window_size} due to limited data ({available_days} days)")
@@ -330,13 +346,13 @@ class EnhancedTradingEnvironment(TradingEnvironment):
         
         self.nikkei_data = nikkei_data
         
-        # Adjust observation space to include Nikkei 225
+        # Adjust observation space for ALL 605 stocks
         # Nikkei: 3 features (high, low, close) * window_size
-        # Stocks: 10 features * window_size * num_stocks
-        # Portfolio: num_stocks + 1
+        # All stocks: 605 symbols * 2 features (price, volume) - current day only
+        # Portfolio: 605 stocks + 1 (cash)
         # News: if available
         nikkei_features = 3 * window_size
-        stock_features = len(symbols) * 10 * window_size
+        stock_features = len(symbols) * 2  # All 605 stocks, 2 features each, current day only
         portfolio_features = len(symbols) + 1
         news_features = len(symbols) * 10 if news_data is not None else 0
         
@@ -347,6 +363,7 @@ class EnhancedTradingEnvironment(TradingEnvironment):
         )
         
         logger.info(f"Enhanced environment with Nikkei 225 indicator initialized")
+    
     
     def _get_observation(self) -> np.ndarray:
         """Get observation including Nikkei 225 data.
@@ -364,36 +381,38 @@ class EnhancedTradingEnvironment(TradingEnvironment):
         for i in range(start_idx, end_idx):
             if i < len(self.nikkei_data):
                 row = self.nikkei_data.iloc[i]
-                # Normalize Nikkei data
+                # Normalize and validate Nikkei data
+                high = row['high'] if not np.isnan(row['high']) else 30000
+                low = row['low'] if not np.isnan(row['low']) else 30000
+                close = row['close'] if not np.isnan(row['close']) else 30000
+                
                 obs_list.extend([
-                    row['high'] / 30000,  # Normalize around typical Nikkei values
-                    row['low'] / 30000,
-                    row['close'] / 30000
+                    np.clip(high / 30000, 0, 5),  # Normalize with clipping
+                    np.clip(low / 30000, 0, 5),
+                    np.clip(close / 30000, 0, 5)
                 ])
             else:
-                obs_list.extend([0, 0, 0])
+                obs_list.extend([1.0, 1.0, 1.0])  # Use neutral values instead of 0
         
-        # 2. Add target stocks data (existing implementation)
+        # 2. Add ALL 605 stocks data with compressed representation
         for symbol in self.symbols:
-            for i in range(start_idx, end_idx):
-                if i < len(self.dates):
-                    date = self.dates[i]
-                    try:
-                        row = self.price_data.loc[(date, symbol)]
-                        # Normalize OHLCV data
-                        obs_list.extend([
-                            row['open'] / 10000,  # Normalize for Japanese stocks
-                            row['high'] / 10000,
-                            row['low'] / 10000,
-                            row['close'] / 10000,
-                            row['volume'] / 1e6
-                        ])
-                        # Add technical indicators
-                        obs_list.extend(self._calculate_technical_indicators(symbol, date))
-                    except KeyError:
-                        obs_list.extend([0] * 10)
-                else:
-                    obs_list.extend([0] * 10)
+            # Use only latest price and volume for each stock to manage dimension
+            if self.current_step < len(self.dates):
+                date = self.dates[self.current_step]
+                try:
+                    row = self.price_data.loc[(date, symbol)]
+                    # Use only essential features: price and volume
+                    close_price = row['close'] if not np.isnan(row['close']) else 1000
+                    volume = row['volume'] if not np.isnan(row['volume']) else 1000
+                    
+                    obs_list.extend([
+                        np.clip(close_price / 1000, 0, 50),  # Normalized price
+                        np.clip(volume / 1e6, 0, 100)        # Normalized volume
+                    ])
+                except KeyError:
+                    obs_list.extend([1.0, 0.1])  # Default values
+            else:
+                obs_list.extend([1.0, 0.1])  # Default values
         
         # 3. Add portfolio state
         current_prices = self._get_current_prices(self.dates[min(self.current_step, len(self.dates)-1)])
@@ -414,19 +433,38 @@ class EnhancedTradingEnvironment(TradingEnvironment):
         return np.array(obs_list, dtype=np.float32)
 
 
+def load_growth_stocks_symbols(max_symbols: int = 605) -> List[str]:
+    """Load Tokyo Stock Exchange Growth Market symbols from CSV.
+    
+    Args:
+        max_symbols: Maximum number of symbols to load for manageable training
+    
+    Returns:
+        List of stock symbols in Yahoo Finance format (XXXX.T)
+    """
+    import csv
+    csv_path = Path(__file__).parent.parent / 'quick_test' / 'growth_stocks_complete_20250909_191236.csv'
+    
+    symbols = []
+    with open(csv_path, 'r', encoding='utf-8-sig') as f:
+        reader = csv.DictReader(f)
+        for i, row in enumerate(reader):
+            if row['企業ID'] and i < max_symbols:  # Limit number of symbols
+                symbols.append(f"{row['企業ID']}.T")
+    
+    logger.info(f"Loaded {len(symbols)} growth stock symbols (limited from 605 for training)")
+    return symbols
+
+
 def main():
     """Main training function."""
     
-    # Target Japanese stocks for trading decisions
-    target_symbols = [
-        '7203.T',  # Toyota
-        '9984.T',  # SoftBank Group
-        '6758.T',  # Sony
-    ]
+    # Load all Tokyo Growth Market stocks (605 companies)
+    target_symbols = load_growth_stocks_symbols()
     
-    # Training period
-    start_date = '2022-01-01'
-    end_date = '2024-01-01'
+    # Training period - 1 year of data
+    end_date = datetime.now().strftime('%Y-%m-%d')
+    start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
     
     # Create training pipeline
     pipeline = Nikkei225TradingPipeline(
@@ -447,13 +485,13 @@ def main():
         device = "cpu"  # CPU fallback
     logger.info(f"Using device: {device}")
     
-    # Train agent
+    # Train agent with parameters optimized for 605 companies
     trained_agent = pipeline.train(
-        total_timesteps=30000,  # Reduced for faster training
-        learning_rate=3e-4,
-        n_steps=512,
-        batch_size=32,
-        n_epochs=10,
+        total_timesteps=80000,  # Increased for larger dataset
+        learning_rate=1e-4,  # Lower LR for stability with many stocks
+        n_steps=1024,  # Moderate steps
+        batch_size=64,  # Larger batch for better gradient estimates
+        n_epochs=4,  # Conservative epochs to prevent overfitting
         device=device
     )
     

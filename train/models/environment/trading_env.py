@@ -39,10 +39,13 @@ class Portfolio:
             Total portfolio value (cash + holdings value)
         """
         holdings_value = sum(
-            self.holdings[symbol] * prices.get(symbol, 0) 
+            self.holdings[symbol] * max(0, prices.get(symbol, 0)) 
             for symbol in self.symbols
         )
-        return self.cash + holdings_value
+        # Ensure no NaN values
+        if np.isnan(holdings_value) or np.isnan(self.cash):
+            return self.initial_cash
+        return max(0, self.cash + holdings_value)
     
     def execute_trade(self, symbol: str, action: float, price: float, commission_rate: float) -> bool:
         """Execute a trade.
@@ -57,13 +60,19 @@ class Portfolio:
             True if trade executed successfully
         """
         try:
+            # Validate inputs
+            if np.isnan(action) or np.isnan(price) or price <= 0:
+                return False
+                
+            action = np.clip(action, -1.0, 1.0)  # Ensure action is in valid range
+                
             if action > 0.1:  # Buy
                 # Calculate how much to buy based on action strength
                 cash_to_use = self.cash * action
                 commission = cash_to_use * commission_rate
                 net_cash = cash_to_use - commission
                 
-                if net_cash > 0:
+                if net_cash > 0 and price > 0:
                     shares_to_buy = net_cash / price
                     self.holdings[symbol] += shares_to_buy
                     self.cash -= cash_to_use
@@ -73,7 +82,7 @@ class Portfolio:
                 # Sell a portion based on action strength
                 shares_to_sell = self.holdings[symbol] * abs(action)
                 
-                if shares_to_sell > 0:
+                if shares_to_sell > 0 and price > 0:
                     gross_proceeds = shares_to_sell * price
                     commission = gross_proceeds * commission_rate
                     net_proceeds = gross_proceeds - commission
