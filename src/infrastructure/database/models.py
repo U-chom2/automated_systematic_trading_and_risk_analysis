@@ -154,7 +154,7 @@ class SignalModel(Base):
     target_price = Column(Numeric(20, 4))
     stop_loss = Column(Numeric(20, 4))
     time_horizon = Column(String(10), default="medium")
-    metadata = Column(JSON)
+    signal_metadata = Column(JSON)
     created_at = Column(DateTime, default=datetime.now)
     expires_at = Column(DateTime)
     

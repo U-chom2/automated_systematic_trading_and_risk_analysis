@@ -105,3 +105,32 @@ pre-commit:
 
 setup-pre-commit:
 	uv run pre-commit install
+
+# Trading System Commands
+screening:
+	uv run python main_trading_system.py --mode screening
+
+analysis:
+	uv run python main_trading_system.py --mode analysis
+
+recording:
+	uv run python main_trading_system.py --mode recording
+
+morning:
+	uv run python main_trading_system.py --mode morning
+
+evening:
+	uv run python main_trading_system.py --mode evening
+
+trade-full:
+	uv run python main_trading_system.py --mode full
+
+scheduler:
+	uv run python scheduler.py
+
+# Data Commands
+clean-data:
+	rm -f data/target.csv data/todos.json data/trade_records.json data/settlements.json
+
+reset-portfolio:
+	rm -f data/portfolio.json

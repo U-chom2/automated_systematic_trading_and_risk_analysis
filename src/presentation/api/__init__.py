@@ -1,18 +1,13 @@
 """APIエンドポイント"""
 from .app import create_app
-from .routers import (
-    portfolio_router,
-    trading_router,
-    signal_router,
-    market_data_router,
-    backtest_router,
-)
+from .routers import portfolio, trading, signal, market_data, backtest, health
 
 __all__ = [
     "create_app",
-    "portfolio_router",
-    "trading_router",
-    "signal_router",
-    "market_data_router",
-    "backtest_router",
+    "portfolio",
+    "trading",
+    "signal",
+    "market_data",
+    "backtest",
+    "health",
 ]
