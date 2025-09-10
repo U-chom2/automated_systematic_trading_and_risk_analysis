@@ -13,9 +13,9 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 
 from src.utils.logger_utils import create_dual_logger
-from src.modules.screening import GrowthScreener
-from src.modules.analysis import StockAnalyzer
-from src.modules.recording import TradeRecorder
+from src.collectors.growth_screener import GrowthScreener
+from src.analyzers.stock_analyzer import StockAnalyzer
+from src.recorders.trade_recorder import TradeRecorder
 
 
 logger = create_dual_logger(__name__, console_output=True)

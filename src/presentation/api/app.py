@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 import logging
 
 from ...infrastructure.database.connection import initialize_database, close_database
-from .routers import portfolio, trading, signal, market_data, backtest, health
+from .routers import health
 
 
 logger = logging.getLogger(__name__)
@@ -78,11 +78,6 @@ def create_app() -> FastAPI:
     
     # ルーターを登録
     app.include_router(health.router, tags=["health"])
-    app.include_router(portfolio.router, prefix="/api/v1/portfolios", tags=["portfolios"])
-    app.include_router(trading.router, prefix="/api/v1/trades", tags=["trades"])
-    app.include_router(signal.router, prefix="/api/v1/signals", tags=["signals"])
-    app.include_router(market_data.router, prefix="/api/v1/market", tags=["market"])
-    app.include_router(backtest.router, prefix="/api/v1/backtest", tags=["backtest"])
     
     @app.get("/")
     async def root():
